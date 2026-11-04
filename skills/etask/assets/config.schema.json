@@ -1,0 +1,94 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "etask project configuration v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "paths", "checks", "reviewers", "jira"],
+  "properties": {
+    "version": { "const": 1 },
+    "paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["backlog", "queue", "decisions", "manualChecks"],
+      "properties": {
+        "backlog": { "$ref": "#/definitions/path" },
+        "queue": { "anyOf": [{ "$ref": "#/definitions/path" }, { "type": "null" }] },
+        "decisions": { "anyOf": [{ "$ref": "#/definitions/path" }, { "type": "null" }] },
+        "manualChecks": { "$ref": "#/definitions/path" }
+      }
+    },
+    "checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["test", "lint", "build"],
+      "properties": {
+        "test": { "$ref": "#/definitions/check" },
+        "lint": { "$ref": "#/definitions/check" },
+        "build": { "$ref": "#/definitions/check" }
+      }
+    },
+    "reviewers": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9-]{0,38}$" }
+    },
+    "jira": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled"],
+          "properties": { "enabled": { "const": false } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled", "site", "projectKey", "lookup", "statuses"],
+          "properties": {
+            "enabled": { "const": true },
+            "site": { "type": "string", "pattern": "^https://[A-Za-z0-9.-]+(?::[0-9]+)?/?$" },
+            "projectKey": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+            "lookup": { "enum": ["key", "summary"] },
+            "statuses": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["inProgress", "inReview", "done"],
+              "properties": {
+                "inProgress": { "$ref": "#/definitions/text" },
+                "inReview": { "$ref": "#/definitions/text" },
+                "done": { "$ref": "#/definitions/text" }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "definitions": {
+    "text": { "type": "string", "minLength": 1, "pattern": "\\S" },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*[\\\\:<>\"|?*\\u0000-\\u001f])(?!\\s*$)[^/]+(?:/[^/]+)*$"
+    },
+    "check": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["command", "cwd"],
+          "properties": {
+            "command": { "$ref": "#/definitions/text" },
+            "cwd": { "$ref": "#/definitions/path" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["skip"],
+          "properties": { "skip": { "$ref": "#/definitions/text" } }
+        }
+      ]
+    }
+  }
+}

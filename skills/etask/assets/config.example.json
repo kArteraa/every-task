@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "paths": {
+    "backlog": "docs/BACKLOG.md",
+    "queue": null,
+    "decisions": "docs/DECISIONS.md",
+    "manualChecks": "docs/MANUAL_CHECKS.md"
+  },
+  "checks": {
+    "test": { "command": "npm test", "cwd": "." },
+    "lint": { "command": "npm run lint", "cwd": "." },
+    "build": { "command": "npm run build", "cwd": "." }
+  },
+  "reviewers": [],
+  "jira": { "enabled": false }
+}

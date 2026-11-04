@@ -1,0 +1,13 @@
+{
+  "name": "every-task",
+  "description": "Переносимый процесс выполнения задач для агентов",
+  "owner": { "name": "kArteraa" },
+  "plugins": [
+    {
+      "name": "etask",
+      "description": "Переносимый процесс выполнения задач для агентов",
+      "version": "0.1.0",
+      "source": "./"
+    }
+  ]
+}

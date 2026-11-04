@@ -1,0 +1,20 @@
+{
+  "name": "etask",
+  "version": "0.1.0",
+  "description": "Общий процесс задачи, настройки и ревью с подтверждениями плана, push и мержа.",
+  "author": { "name": "kArteraa" },
+  "homepage": "https://github.com/kArteraa/every-task",
+  "repository": "https://github.com/kArteraa/every-task",
+  "license": "MIT",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "etask",
+    "shortDescription": "План, реализация, проверки и PR для каждой задачи",
+    "longDescription": "Выполняйте задачи, настраивайте проекты и проверяйте PR по общему процессу с явными подтверждениями плана, push и мержа.",
+    "developerName": "kArteraa",
+    "category": "Developer Tools",
+    "capabilities": ["Read", "Write", "Interactive"],
+    "defaultPrompt": ["Используй $etask для следующей задачи проекта."],
+    "websiteURL": "https://github.com/kArteraa/every-task"
+  }
+}
