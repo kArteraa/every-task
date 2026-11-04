@@ -1,0 +1,6 @@
+{
+  "name": "etask",
+  "version": "0.1.0",
+  "description": "Переносимый процесс выполнения задач для агентов",
+  "contextFileName": "adapters/gemini/GEMINI.md"
+}
