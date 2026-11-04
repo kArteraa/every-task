@@ -1,0 +1,25 @@
+name: Validate
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main, 'feat/**', 'fix/**', 'refactor/**', 'test/**', 'docs/**', 'chore/**']
+permissions:
+  contents: read
+jobs:
+  check:
+    name: check (${{ matrix.os }})
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm test
+      - run: npm run lint
+      - run: npm run build

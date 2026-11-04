@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.superpowers/
+.etask/runs/
+.env
+.env.*
+!.env.example
+*.log
