@@ -1,4 +1,5 @@
 import { board, checkpoint, check, doctor, moveTask, resume, status } from './workflow.mjs';
+import { updateFromArgs } from './update.mjs';
 
 const args = process.argv.slice(2);
 function option(name) {
@@ -8,7 +9,8 @@ function option(name) {
   return args.splice(index, 2)[1];
 }
 
-try {
+async function main() {
+  if (args[0] === 'update') return updateFromArgs(args.slice(1));
   const persist = args.includes('--save');
   if (persist) args.splice(args.indexOf('--save'), 1);
   const root = option('--root');
@@ -27,6 +29,11 @@ try {
   else if (command === 'check' && id && detail) result = await check(root, id, detail);
   else if (command === 'move' && id && detail) result = await moveTask(root, id, detail, pr === undefined ? undefined : Number(pr));
   else throw new Error('Usage: doctor | board | status [ID] | resume ID | checkpoint ID review|sanitize --note TEXT | check ID KIND | move ID STATE [--pr N]; always pass --root PATH');
+  return result;
+}
+
+try {
+  const result = await main();
   console.log(typeof result === 'string' ? result : JSON.stringify(result, null, 2));
   if (result?.passed === false) process.exitCode = 1;
 } catch (error) {
