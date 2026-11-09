@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { readFile, readdir, rename, rm, writeFile, mkdir } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import { readFile, readdir, rename, rm, writeFile, mkdir, lstat } from 'node:fs/promises';
 import path from 'node:path';
 import { inside } from './project.mjs';
 import { parseTasks, withTaskState } from './tasks.mjs';
@@ -30,26 +31,45 @@ export async function fingerprint(project) {
   const excluded = new Set([config.paths.board, config.paths.manualChecks, '.etask/state.json']);
   const directories = new Set(['.git', 'node_modules', 'dist', '.superpowers']);
   const digest = createHash('sha256');
+  const omitted = relative => excluded.has(relative) || relative.startsWith('.etask/runs/') || relative === '.etask/runs';
+  async function addFile(absolute, relative) {
+    let content = await readFile(absolute);
+    if (relative === config.paths.backlog) {
+      let markdown = content.toString('utf8');
+      for (const task of parseTasks(markdown).reverse()) markdown = markdown.slice(0, task.start) + withTaskState(task, '<state>') + markdown.slice(task.end);
+      content = Buffer.from(markdown);
+    }
+    digest.update(JSON.stringify([relative, content.length, createHash('sha256').update(content).digest('hex')]) + '\n');
+  }
   async function walk(directory, prefix = '') {
     for (const entry of (await readdir(directory, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name, 'en'))) {
       const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
-      if (excluded.has(relative) || relative.startsWith('.etask/runs/') || relative === '.etask/runs') continue;
+      if (omitted(relative)) continue;
       if (entry.isDirectory() && directories.has(entry.name)) continue;
       if (entry.isSymbolicLink()) throw new Error(`Snapshot does not follow symlinks: ${relative}`);
       const absolute = await inside(root, relative);
       if (entry.isDirectory()) await walk(absolute, relative);
-      else if (entry.isFile()) {
-        let content = await readFile(absolute);
-        if (relative === config.paths.backlog) {
-          let markdown = content.toString('utf8');
-          for (const task of parseTasks(markdown).reverse()) markdown = markdown.slice(0, task.start) + withTaskState(task, '<state>') + markdown.slice(task.end);
-          content = Buffer.from(markdown);
-        }
-        digest.update(JSON.stringify([relative, content.length, createHash('sha256').update(content).digest('hex')]) + '\n');
-      }
+      else if (entry.isFile()) await addFile(absolute, relative);
     }
   }
-  await walk(root);
+  if (config.workflow?.mode === 'github') {
+    const result = spawnSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], {
+      cwd: root, encoding: 'utf8', timeout: 30000, maxBuffer: 16 * 1024 * 1024, windowsHide: true
+    });
+    if (result.error || result.status !== 0) throw new Error(`Git snapshot failed: ${result.error?.message || result.stderr?.trim() || `exit ${result.status}`}`);
+    const files = new Set([...result.stdout.split('\0').filter(Boolean), '.etask/config.json', config.project.goal, config.paths.backlog]);
+    if (config.paths.decisions) files.add(config.paths.decisions);
+    for (const relative of [...files].sort()) {
+      if (omitted(relative)) continue;
+      const absolute = await inside(root, relative);
+      let info;
+      try { info = await lstat(absolute); }
+      catch (error) { if (error.code === 'ENOENT') continue; throw error; }
+      if (info.isSymbolicLink()) throw new Error(`Snapshot does not follow symlinks: ${relative}`);
+      if (!info.isFile()) throw new Error(`Git snapshot requires a regular file, not a directory or submodule: ${relative}`);
+      await addFile(absolute, relative);
+    }
+  } else await walk(root);
   return digest.digest('hex');
 }
 
