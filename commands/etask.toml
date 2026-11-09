@@ -1,4 +1,4 @@
-description = "Выполнить задачу, setup или review по общему пайплайну etask"
+description = "Проект local/GitHub: setup, board, status, resume, doctor, review и задачи"
 prompt = """
 Пользователь явно вызвал etask. Активируй установленный skill etask
 через activate_skill и следуй его SKILL.md и связанным references.

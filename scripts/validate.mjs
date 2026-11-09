@@ -5,6 +5,7 @@ import { parse as parseToml } from 'smol-toml';
 import Ajv from 'ajv';
 import { listFiles, resolveInside } from './files.mjs';
 import { adapterFiles, commonFiles } from './package-files.mjs';
+import { validateProfile } from '../skills/etask/tools/project.mjs';
 
 export async function validateProject(root) {
   const errors = [];
@@ -93,6 +94,18 @@ export async function validateProject(root) {
       expect(validator(example), `config.example.json: ${JSON.stringify(validator.errors)}`);
     } catch (error) {
       errors.push(`config.schema.json: ${error.message}`);
+    }
+  }
+  const v2Schema = await inspect('skills/etask/assets/config-v2.schema.json', JSON.parse);
+  if (v2Schema) {
+    const validator = new Ajv({ allErrors: true, strict: true }).compile(v2Schema);
+    for (const mode of ['local', 'github']) {
+      const filename = `skills/etask/assets/config.${mode}.example.json`;
+      const profile = await inspect(filename, JSON.parse);
+      if (profile) {
+        expect(validator(profile), `${filename}: ${JSON.stringify(validator.errors)}`);
+        for (const error of validateProfile(profile)) errors.push(`${filename}: ${error}`);
+      }
     }
   }
 

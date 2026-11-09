@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,8 +15,9 @@ async function fixture(t) {
   const directory = await mkdtemp(path.join(tmpdir(), 'etask-package-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   await cp(root, directory, { recursive: true, filter: source => {
-    const first = path.relative(root, source).split(path.sep)[0];
-    return !['.git', 'node_modules', 'dist', '.superpowers'].includes(first);
+    const relative = path.relative(root, source).split(path.sep).join('/');
+    const first = relative.split('/')[0];
+    return !['.git', 'node_modules', 'dist', '.superpowers'].includes(first) && !['.etask/state.json', '.etask/runs'].includes(relative);
   } });
   return directory;
 }
@@ -95,4 +97,46 @@ test('refuses to package invalid input', async t => {
   const directory = await fixture(t);
   await rm(path.join(directory, 'skills/etask/SKILL.md'));
   await assert.rejects(buildPackages(directory, path.join(directory, 'dist')), /SKILL\.md/);
+});
+
+test('e2e: all release archives run standalone and carry the calculated version and changelog', async t => {
+  const directory = await fixture(t);
+  const release = { version: '1.2.3', notes: '# Release 1.2.3\n\n- Verified workflow.\n', commit: 'a'.repeat(40) };
+  const archives = await buildPackages(directory, path.join(directory, 'dist'), release);
+  const target = await mkdtemp(path.join(tmpdir(), 'etask-installed-project-'));
+  t.after(() => rm(target, { recursive: true, force: true }));
+  const profile = JSON.parse(await readFile(path.join(root, 'skills/etask/assets/config.local.example.json'), 'utf8'));
+  for (const entry of Object.values(profile.checks)) entry.command = 'node -e "process.exit(0)"';
+  await mkdir(path.join(target, '.etask'));
+  await mkdir(path.join(target, 'docs'));
+  await writeFile(path.join(target, '.etask/config.json'), JSON.stringify(profile));
+  await writeFile(path.join(target, 'docs/PROJECT.md'), '# Goal\n\nCheck standalone installation.\n');
+  await writeFile(path.join(target, 'docs/BACKLOG.md'), '# Backlog\n');
+  await writeFile(path.join(target, 'docs/DECISIONS.md'), '# Decisions\n');
+  await writeFile(path.join(target, 'docs/MANUAL_CHECKS.md'), '# Manual\n');
+  for (const archive of archives) {
+    const unpacked = await mkdtemp(path.join(tmpdir(), 'etask-installed-'));
+    t.after(() => rm(unpacked, { recursive: true, force: true }));
+    const entries = unzipSync(await readFile(archive));
+    for (const [relative, content] of Object.entries(entries)) {
+      const filename = path.join(unpacked, relative);
+      await mkdir(path.dirname(filename), { recursive: true });
+      await writeFile(filename, content);
+    }
+    const metadata = JSON.parse(new TextDecoder().decode(entries['RELEASE.json']));
+    assert.equal(metadata.version, '1.2.3');
+    assert.equal(metadata.commit, release.commit);
+    assert.equal(new TextDecoder().decode(entries['CHANGELOG.md']), release.notes);
+    for (const manifest of ['.codex-plugin/plugin.json', '.claude-plugin/plugin.json', 'gemini-extension.json']) {
+      if (entries[manifest]) assert.equal(JSON.parse(new TextDecoder().decode(entries[manifest])).version, '1.2.3');
+    }
+    const result = JSON.parse(execFileSync(process.execPath, [path.join(unpacked, 'skills/etask/tools/etask.mjs'), 'doctor', '--root', target], {
+      cwd: target, encoding: 'utf8', env: { ...process.env, PATH: path.dirname(process.execPath) }
+    }));
+    assert.equal(result.passed, true);
+    assert.equal(result.mode, 'local');
+    assert.equal(Object.keys(entries).some(name => name.includes('node_modules')), false);
+  }
+  assert.equal(JSON.parse(await readFile(path.join(directory, 'package.json'), 'utf8')).version,
+    JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8')).version);
 });
