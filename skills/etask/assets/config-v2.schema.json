@@ -1,0 +1,310 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "etask project configuration v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "project",
+    "workflow",
+    "paths",
+    "checks",
+    "reviewers",
+    "jira"
+  ],
+  "properties": {
+    "version": {
+      "const": 2
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "goal",
+        "owner"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/definitions/text"
+        },
+        "goal": {
+          "$ref": "#/definitions/path"
+        },
+        "owner": {
+          "$ref": "#/definitions/text"
+        }
+      }
+    },
+    "workflow": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "git",
+            "integrationBranch",
+            "productionBranch"
+          ],
+          "properties": {
+            "mode": {
+              "const": "local"
+            },
+            "git": {
+              "type": "boolean"
+            },
+            "integrationBranch": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(?!-)(?!.*\\.\\.)(?!.*[~^:?*\\[\\\\\\s])(?!.*(?:/\\.|//|@\\{))(?!.*(?:\\.|/|\\.lock)$)[A-Za-z0-9][A-Za-z0-9._/-]*$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "productionBranch": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(?!-)(?!.*\\.\\.)(?!.*[~^:?*\\[\\\\\\s])(?!.*(?:/\\.|//|@\\{))(?!.*(?:\\.|/|\\.lock)$)[A-Za-z0-9][A-Za-z0-9._/-]*$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "git",
+            "integrationBranch",
+            "productionBranch",
+            "repository"
+          ],
+          "properties": {
+            "mode": {
+              "const": "github"
+            },
+            "git": {
+              "const": true
+            },
+            "integrationBranch": {
+              "type": "string",
+              "pattern": "^(?!-)(?!.*\\.\\.)(?!.*[~^:?*\\[\\\\\\s])(?!.*(?:/\\.|//|@\\{))(?!.*(?:\\.|/|\\.lock)$)[A-Za-z0-9][A-Za-z0-9._/-]*$"
+            },
+            "productionBranch": {
+              "type": "string",
+              "pattern": "^(?!-)(?!.*\\.\\.)(?!.*[~^:?*\\[\\\\\\s])(?!.*(?:/\\.|//|@\\{))(?!.*(?:\\.|/|\\.lock)$)[A-Za-z0-9][A-Za-z0-9._/-]*$"
+            },
+            "repository": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+            }
+          }
+        }
+      ]
+    },
+    "paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "backlog",
+        "board",
+        "queue",
+        "decisions",
+        "manualChecks"
+      ],
+      "properties": {
+        "backlog": {
+          "$ref": "#/definitions/path"
+        },
+        "board": {
+          "$ref": "#/definitions/path"
+        },
+        "queue": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/path"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "decisions": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/path"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "manualChecks": {
+          "$ref": "#/definitions/path"
+        }
+      }
+    },
+    "checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "test",
+        "unit",
+        "integration",
+        "e2e",
+        "lint",
+        "build"
+      ],
+      "properties": {
+        "test": {
+          "$ref": "#/definitions/command"
+        },
+        "unit": {
+          "$ref": "#/definitions/command"
+        },
+        "integration": {
+          "$ref": "#/definitions/command"
+        },
+        "e2e": {
+          "$ref": "#/definitions/command"
+        },
+        "lint": {
+          "$ref": "#/definitions/check"
+        },
+        "build": {
+          "$ref": "#/definitions/check"
+        }
+      }
+    },
+    "reviewers": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9-]{0,38}$"
+      }
+    },
+    "jira": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "enabled"
+          ],
+          "properties": {
+            "enabled": {
+              "const": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "enabled",
+            "site",
+            "projectKey",
+            "lookup",
+            "statuses"
+          ],
+          "properties": {
+            "enabled": {
+              "const": true
+            },
+            "site": {
+              "type": "string",
+              "pattern": "^https://[A-Za-z0-9.-]+(?::[0-9]+)?/?$"
+            },
+            "projectKey": {
+              "type": "string",
+              "pattern": "^[A-Z][A-Z0-9_]*$"
+            },
+            "lookup": {
+              "enum": [
+                "key",
+                "summary"
+              ]
+            },
+            "statuses": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "inProgress",
+                "inReview",
+                "done"
+              ],
+              "properties": {
+                "inProgress": {
+                  "$ref": "#/definitions/text"
+                },
+                "inReview": {
+                  "$ref": "#/definitions/text"
+                },
+                "done": {
+                  "$ref": "#/definitions/text"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "definitions": {
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*[\\\\:<>\"|?*\\u0000-\\u001f])(?!\\s*$)[^/]+(?:/[^/]+)*$"
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command",
+        "cwd"
+      ],
+      "properties": {
+        "command": {
+          "$ref": "#/definitions/text"
+        },
+        "cwd": {
+          "$ref": "#/definitions/path"
+        }
+      }
+    },
+    "check": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/command"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "skip"
+          ],
+          "properties": {
+            "skip": {
+              "$ref": "#/definitions/text"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

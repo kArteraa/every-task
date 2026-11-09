@@ -1,6 +1,6 @@
 interface:
   display_name: "etask"
-  short_description: "Задача, план, проверки и PR по одному процессу"
+  short_description: "Цель, Markdown-доска и проверенные задачи local/GitHub"
   default_prompt: "Используй $etask для следующей задачи проекта."
 policy:
   allow_implicit_invocation: false

@@ -9,6 +9,7 @@ export async function listFiles(root, relative = '') {
   for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name, 'en'))) {
     if (ignored.has(entry.name)) continue;
     const filename = path.posix.join(relative, entry.name);
+    if (filename === '.etask/state.json' || filename === '.etask/runs') continue;
     if (entry.isSymbolicLink()) throw new Error(`Symbolic link is not a package input: ${filename}`);
     if (entry.isDirectory()) files.push(...await listFiles(root, filename));
     else if (entry.isFile()) files.push(filename);

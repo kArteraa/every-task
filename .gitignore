@@ -2,6 +2,7 @@ node_modules/
 dist/
 .superpowers/
 .etask/runs/
+.etask/state.json
 .env
 .env.*
 !.env.example
