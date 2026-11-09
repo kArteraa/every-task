@@ -25,12 +25,24 @@ async function copyPackage(source, target) {
   await copy(source, target);
 }
 
+async function canonicalStore(directory) {
+  const resolved = path.resolve(directory);
+  await inside(path.parse(resolved).root, path.relative(path.parse(resolved).root, resolved));
+  const missing = [];
+  for (let ancestor = resolved; ; ancestor = path.dirname(ancestor)) {
+    try { return path.join(await realpath(ancestor), ...missing); }
+    catch (error) {
+      if (error.code !== 'ENOENT' || path.dirname(ancestor) === ancestor) throw error;
+      missing.unshift(path.basename(ancestor));
+    }
+  }
+}
+
 async function destination(options) {
   if (!options.installedRoot || !options.store || !path.isAbsolute(options.installedRoot) || !path.isAbsolute(options.store)) throw new Error('Explicit absolute --installed-root and --store required');
   const installed = await realpath(options.installedRoot);
   const cwd = await realpath(options.cwd || process.cwd());
-  const store = path.resolve(options.store);
-  await inside(path.parse(store).root, path.relative(path.parse(store).root, store));
+  const store = await canonicalStore(options.store);
   if ([installed, cwd].some(root => contains(root, store) || contains(store, root))) throw new Error('Update store must be separate from the project and installed package');
   for (let ancestor = store; ; ancestor = path.dirname(ancestor)) {
     try { await lstat(path.join(ancestor, '.git')); throw new Error('Update store cannot be inside a Git checkout'); }

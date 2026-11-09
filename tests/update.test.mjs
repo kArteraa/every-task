@@ -139,6 +139,28 @@ test('integration: update refuses a destination inside the project or old instal
   assert.equal(f.calls.length, 0);
 });
 
+test('integration: Windows short paths cannot bypass update store isolation', { skip: process.platform !== 'win32' }, async t => {
+  const f = await fixture(t);
+  let checked = 0;
+  for (const parent of [f.project, f.installed, process.env.ProgramFiles].filter(Boolean)) {
+    const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', '(New-Object -ComObject Scripting.FileSystemObject).GetFolder($env:ETASK_TEST_PATH).ShortPath'], {
+      encoding: 'utf8', env: { ...process.env, ETASK_TEST_PATH: parent }, windowsHide: true
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const alias = result.stdout.trim();
+    if (alias.toLowerCase() === parent.toLowerCase()) continue;
+    for (const field of ['cwd', 'installedRoot']) {
+      for (const relative of ['', 'updates/nested']) {
+        await assert.rejects(updatePlugin({ ...f.options, [field]: parent, store: path.join(alias, relative) }, async () => {
+          assert.fail('Host must not be called for an overlapping directory');
+        }), /store|destination/i);
+      }
+    }
+    checked++;
+  }
+  if (!checked) t.skip('Filesystem does not provide short path aliases');
+});
+
 test('e2e: update dispatch does not require a project profile and rejects missing host', () => {
   const cli = fileURLToPath(new URL('../skills/etask/tools/etask.mjs', import.meta.url));
   const result = spawnSync(process.execPath, [cli, 'update'], { encoding: 'utf8', cwd: tmpdir() });
