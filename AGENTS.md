@@ -24,7 +24,7 @@ GitHub доступен через gh, Git-операции через git. MCP 
 
 Цель проекта — [docs/PROJECT.md](docs/PROJECT.md), задачи —
 [docs/BACKLOG.md](docs/BACKLOG.md), текущий план —
-[docs/PLAN-0.2.0.md](docs/PLAN-0.2.0.md).
+[docs/PLAN-UPDATE.md](docs/PLAN-UPDATE.md).
 После каждой правки выполняй отдельные code review и санитайз; исправления
 повторяют этот цикл. Unit, integration и e2e обязательны.
 Conventional Commits заменяют прежние сообщения списком.

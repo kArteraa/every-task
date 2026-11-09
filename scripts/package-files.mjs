@@ -9,6 +9,7 @@ export const commonFiles = [
   'LICENSE',
   'docs/INSTALLATION.md',
   'docs/VALIDATION.md',
+  'docs/UPDATE-VALIDATION.md',
   'docs/RELEASING.md',
   'evals/scenarios.md',
   'skills/etask/SKILL.md',
@@ -31,11 +32,16 @@ export const commonFiles = [
   'skills/etask/references/board.md',
   'skills/etask/references/resume.md',
   'skills/etask/references/tools.md',
+  'skills/etask/references/update.md',
   'skills/etask/tools/etask.mjs',
   'skills/etask/tools/project.mjs',
   'skills/etask/tools/tasks.mjs',
   'skills/etask/tools/storage.mjs',
   'skills/etask/tools/git.mjs',
   'skills/etask/tools/diagnostics.mjs',
-  'skills/etask/tools/workflow.mjs'
+  'skills/etask/tools/workflow.mjs',
+  'skills/etask/tools/update.mjs',
+  'skills/etask/tools/update-hosts.mjs',
+  'skills/etask/tools/update-release.mjs',
+  'skills/etask/tools/update-archive.mjs'
 ];
