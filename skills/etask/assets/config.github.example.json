@@ -1,0 +1,52 @@
+{
+  "version": 2,
+  "project": {
+    "name": "Пример проекта",
+    "goal": "docs/PROJECT.md",
+    "owner": "developer"
+  },
+  "workflow": {
+    "mode": "github",
+    "git": true,
+    "integrationBranch": "dev",
+    "productionBranch": "main",
+    "repository": "owner/project"
+  },
+  "paths": {
+    "backlog": "docs/BACKLOG.md",
+    "board": "docs/BOARD.md",
+    "queue": null,
+    "decisions": "docs/DECISIONS.md",
+    "manualChecks": "docs/MANUAL_CHECKS.md"
+  },
+  "checks": {
+    "test": {
+      "command": "npm test",
+      "cwd": "."
+    },
+    "unit": {
+      "command": "npm run test:unit",
+      "cwd": "."
+    },
+    "integration": {
+      "command": "npm run test:integration",
+      "cwd": "."
+    },
+    "e2e": {
+      "command": "npm run test:e2e",
+      "cwd": "."
+    },
+    "lint": {
+      "command": "npm run lint",
+      "cwd": "."
+    },
+    "build": {
+      "command": "npm run build",
+      "cwd": "."
+    }
+  },
+  "reviewers": [],
+  "jira": {
+    "enabled": false
+  }
+}

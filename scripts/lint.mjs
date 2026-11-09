@@ -17,6 +17,8 @@ for (const filename of await listFiles(root)) {
     if (/[ \t]+$/.test(line)) errors.push(`${filename}:${index + 1}: trailing whitespace`);
   }
   if (filename.endsWith('.mjs')) {
+    if (content.trimEnd().split(/\r?\n/).length > 500) errors.push(`${filename}: exceeds 500 source lines`);
+    if (/^\s*(?:\/\/|\/\*)/m.test(content)) errors.push(`${filename}: code comments are prohibited`);
     try {
       execFileSync(process.execPath, ['--check', absolute], { stdio: 'pipe' });
     } catch (error) {

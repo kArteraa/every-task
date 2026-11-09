@@ -1,19 +1,26 @@
 {
   "name": "every-task",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "etask agent workflow plugin",
   "type": "module",
   "license": "MIT",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": "^22.14.0 || >=24.10.0"
+  },
   "scripts": {
     "test": "node --test",
     "lint": "node scripts/lint.mjs",
-    "build": "node scripts/build.mjs"
+    "build": "node scripts/build.mjs",
+    "test:unit": "node --test --test-name-pattern=\"^unit:\"",
+    "test:integration": "node --test --test-name-pattern=\"^integration:\"",
+    "test:e2e": "node --test --test-name-pattern=\"^e2e:\"",
+    "release": "node scripts/release/run.mjs"
   },
   "devDependencies": {
     "ajv": "8.20.0",
     "fflate": "0.8.3",
+    "semantic-release": "25.0.9",
     "smol-toml": "1.9.1",
     "yaml": "2.9.1"
   }
