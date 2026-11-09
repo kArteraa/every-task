@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, writeFile, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -204,4 +204,23 @@ test('integration: normalized document paths preserve evidence across board and 
   assert.equal(current.evidence.review.current, true);
   assert.equal(current.evidence.sanitize.current, true);
   assert.match(await readFile(path.join(root, 'BOARD.md'), 'utf8'), /ET-1/);
+});
+
+test('e2e: board rejects directory links before overwriting backlog or state', async t => {
+  for (const target of ['backlog', 'existing-state', 'new-state']) {
+    const { root, config } = await fixture(t);
+    const stateFile = path.join(root, '.etask/state.json');
+    const originalState = JSON.stringify({ version: 1, tasks: {} });
+    if (target === 'existing-state') await writeFile(stateFile, originalState);
+    await symlink(target === 'backlog' ? root : path.join(root, '.etask'), path.join(root, 'alias'), process.platform === 'win32' ? 'junction' : 'dir');
+    config.paths.board = target === 'backlog' ? 'alias/BACKLOG.md' : 'alias/state.json';
+    await writeFile(path.join(root, '.etask/config.json'), JSON.stringify(config));
+    const originalBacklog = await readFile(path.join(root, 'BACKLOG.md'), 'utf8');
+    const result = spawnSync(process.execPath, [cli, 'board', '--root', root], { encoding: 'utf8' });
+    assert.notEqual(result.status, 0, target);
+    assert.match(result.stderr, /symlink|symbolic|junction/i);
+    assert.equal(await readFile(path.join(root, 'BACKLOG.md'), 'utf8'), originalBacklog);
+    if (target === 'existing-state') assert.equal(await readFile(stateFile, 'utf8'), originalState);
+    else await assert.rejects(readFile(stateFile), { code: 'ENOENT' });
+  }
 });

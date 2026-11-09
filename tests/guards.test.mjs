@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -44,7 +44,7 @@ test('integration: junctions and traversal cannot escape the target project', as
   t.after(() => rm(root, { recursive: true, force: true }));
   t.after(() => rm(outside, { recursive: true, force: true }));
   await symlink(outside, path.join(root, 'escape'), process.platform === 'win32' ? 'junction' : 'dir');
-  await assert.rejects(inside(root, 'escape/new.md'), /escapes/);
+  await assert.rejects(inside(root, 'escape/new.md'), /symlink|junction/i);
   await assert.rejects(inside(root, '../outside.md'), /escapes/);
 });
 
@@ -69,4 +69,18 @@ test('unit: document aliases cannot collide or target internal directories', asy
     const config = { ...example, paths: { ...example.paths, board: `././${directory}/./file.md` } };
     assert.ok(validateProfile(config).some(error => error.includes('internal')), directory);
   }
+});
+
+test('integration: path checks reject internal and dangling directory links', async t => {
+  const root = await mkdtemp(path.join(tmpdir(), 'etask-links-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(path.join(root, 'docs'));
+  await writeFile(path.join(root, 'docs/file.md'), 'Original\n');
+  for (const [name, target] of [['alias', 'docs'], ['dangling', 'missing']]) {
+    await symlink(path.join(root, target), path.join(root, name), process.platform === 'win32' ? 'junction' : 'dir');
+    for (const suffix of ['file.md', 'new/deep/file.md']) {
+      await assert.rejects(inside(root, `${name}/${suffix}`), /symlink|symbolic|junction/i);
+    }
+  }
+  assert.equal(await inside(root, 'docs/new/deep/file.md'), path.join(root, 'docs/new/deep/file.md'));
 });

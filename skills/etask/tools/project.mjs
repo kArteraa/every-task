@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { readFile, realpath, stat } from 'node:fs/promises';
+import { readFile, realpath, stat, lstat } from 'node:fs/promises';
 import path from 'node:path';
 
 const schema = JSON.parse(readFileSync(new URL('../assets/config-v2.schema.json', import.meta.url), 'utf8'));
@@ -60,14 +60,14 @@ export async function inside(root, relative) {
     return resolved === '' || (!resolved.startsWith(`..${path.sep}`) && resolved !== '..' && !path.isAbsolute(resolved));
   }
   if (!contained(absolute)) throw new Error(`Path escapes project: ${relative}`);
-  let ancestor = absolute;
-  while (true) {
+  let current = root;
+  for (const segment of path.relative(root, absolute).split(path.sep).filter(Boolean)) {
+    current = path.join(current, segment);
     try {
-      if (!contained(await realpath(ancestor))) throw new Error(`Symlink escapes project: ${relative}`);
-      break;
+      if ((await lstat(current)).isSymbolicLink()) throw new Error(`Symlink/junction paths are not allowed: ${relative}`);
     } catch (error) {
       if (error.code !== 'ENOENT') throw error;
-      ancestor = path.dirname(ancestor);
+      break;
     }
   }
   return absolute;
