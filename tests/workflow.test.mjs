@@ -179,3 +179,29 @@ test('e2e: installed-style CLI supports local doctor, board, status and resume w
   const invalid = spawnSync(process.execPath, [cli, 'move', 'ET-1', 'done', '--root', root], { encoding: 'utf8' });
   assert.notEqual(invalid.status, 0);
 });
+
+test('e2e: board rejects a backlog alias without losing task data', async t => {
+  const { root, config } = await fixture(t);
+  config.paths.board = './BACKLOG.md';
+  await writeFile(path.join(root, '.etask/config.json'), JSON.stringify(config));
+  const original = await readFile(path.join(root, 'BACKLOG.md'), 'utf8');
+  const result = spawnSync(process.execPath, [cli, 'board', '--root', root], { encoding: 'utf8' });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /distinct/);
+  assert.equal(await readFile(path.join(root, 'BACKLOG.md'), 'utf8'), original);
+});
+
+test('integration: normalized document paths preserve evidence across board and state updates', async t => {
+  const { root, config } = await fixture(t);
+  config.project.goal = './PROJECT.md';
+  for (const key of ['backlog', 'board', 'manualChecks']) config.paths[key] = `././${config.paths[key]}`;
+  await writeFile(path.join(root, '.etask/config.json'), JSON.stringify(config));
+  await moveTask(root, 'ET-1', 'in-progress');
+  for (const kind of ['review', 'sanitize']) await checkpoint(root, 'ET-1', kind, 'Inspected task.');
+  await moveTask(root, 'ET-1', 'testing');
+  await writeFile(path.join(root, 'MANUAL.md'), '# Проверки\nPassed\n');
+  const current = await status(root, 'ET-1');
+  assert.equal(current.evidence.review.current, true);
+  assert.equal(current.evidence.sanitize.current, true);
+  assert.match(await readFile(path.join(root, 'BOARD.md'), 'utf8'), /ET-1/);
+});

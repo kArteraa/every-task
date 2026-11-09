@@ -58,3 +58,15 @@ test('unit: runtime validation agrees with JSON Schema on malformed profiles', a
   for (const config of variants) assert.equal(validateProfile(config).length === 0, validate(config));
   assert.notDeepEqual(validateProfile({ ...example, paths: { ...example.paths, board: '.git/config' } }), []);
 });
+
+test('unit: document aliases cannot collide or target internal directories', async () => {
+  const example = JSON.parse(await readFile(new URL('../skills/etask/assets/config.local.example.json', import.meta.url)));
+  for (const board of ['./docs/BACKLOG.md', 'docs/./BACKLOG.md', './docs/./BACKLOG.md']) {
+    const config = { ...example, paths: { ...example.paths, backlog: 'docs/BACKLOG.md', board } };
+    assert.ok(validateProfile(config).some(error => error.includes('distinct')), board);
+  }
+  for (const directory of ['.etask', '.git', 'node_modules', 'dist', '.superpowers']) {
+    const config = { ...example, paths: { ...example.paths, board: `././${directory}/./file.md` } };
+    assert.ok(validateProfile(config).some(error => error.includes('internal')), directory);
+  }
+});

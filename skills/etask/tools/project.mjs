@@ -46,7 +46,7 @@ export function validateProfile(config) {
     if (workflow.git && (!workflow.integrationBranch || !workflow.productionBranch)) errors.push('Git requires explicit branch names');
     if (!workflow.git && (workflow.integrationBranch || workflow.productionBranch)) errors.push('Branches require Git');
     if (workflow.git && workflow.integrationBranch === workflow.productionBranch) errors.push('Integration and production branches must differ');
-    const documents = [config.project.goal, ...Object.values(config.paths).filter(Boolean)];
+    const documents = [config.project.goal, ...Object.values(config.paths).filter(Boolean)].map(value => path.posix.normalize(value));
     if (new Set(documents.map(value => value.toLowerCase())).size !== documents.length) errors.push('Document paths must be distinct');
     if (documents.some(value => /^(?:\.etask|\.git|node_modules|dist|\.superpowers)(?:\/|$)/i.test(value))) errors.push('Document paths cannot overwrite internal or excluded directories');
   }
@@ -80,6 +80,8 @@ export async function loadProject(directory) {
   if (config.version === 1) throw new Error('Configuration v1 requires an explicit setup migration to v2');
   const errors = validateProfile(config);
   if (errors.length) throw new Error(errors.join('\n'));
+  config.project.goal = path.posix.normalize(config.project.goal);
+  config.paths = Object.fromEntries(Object.entries(config.paths).map(([key, value]) => [key, value === null ? null : path.posix.normalize(value)]));
   for (const relative of [config.project.goal, ...Object.values(config.paths).filter(Boolean)]) await inside(root, relative);
   const goal = await readFile(await inside(root, config.project.goal), 'utf8');
   if (!goal.replace(/^#.*$/gm, '').trim()) throw new Error('Project goal must describe an outcome');
