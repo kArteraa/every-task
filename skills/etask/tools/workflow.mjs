@@ -2,7 +2,7 @@ import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { loadProject, inside } from './project.mjs';
-import { parseTasks, validateTasks, renderBoard, labels } from './tasks.mjs';
+import { parseTasks, validateTasks, renderBoard, labels, taskDefinition, isCompleted, withTaskState } from './tasks.mjs';
 import { fingerprint, readOptional, readState, replaceFile } from './storage.mjs';
 import { gitState, requireWorkingBranch, readPr, findPr, run } from './git.mjs';
 import { commandAvailable } from './diagnostics.mjs';
@@ -88,8 +88,11 @@ export async function status(root, id) {
     for (const dependency of item.task.dependencies) {
       const dependencyTask = project.tasks.find(task => task.id === dependency);
       const finished = project.config.workflow.mode === 'github' ? findPr(project, dependency)?.state === 'MERGED' :
-        dependencyTask.state === 'done' && Boolean(project.saved.state.tasks[dependency]?.completion);
+        isCompleted(dependencyTask, project.saved.state.tasks[dependency]);
       if (!finished) item.blockers.push(`Dependency ${dependency} is not verified done`);
+    }
+    if (project.config.workflow.mode === 'local' && item.task.state === 'done' && !isCompleted(project.tasks.find(task => task.id === item.task.id), project.saved.state.tasks[item.task.id])) {
+      item.blockers.push('Task definition changed or completion evidence is missing; reverify completion');
     }
     if (item.task.state !== 'done') {
       const required = item.task.state === 'testing' ? ['review', 'sanitize', ...checkKinds] : item.task.state === 'in-progress' ? ['review', 'sanitize'] : [];
@@ -138,7 +141,7 @@ export async function moveTask(root, id, target, prNumber) {
     if (config.workflow.mode === 'github') {
       const pr = completed?.pr ? readPr(project, dependency, completed.pr) : findPr(project, dependency);
       if (pr?.state !== 'MERGED') throw new Error(`Unmerged dependency ${dependency}`);
-    } else if (predecessor.state !== 'done' || !completed?.completion) throw new Error(`Unfinished dependency ${dependency}`);
+    } else if (!isCompleted(predecessor, completed)) throw new Error(`Unfinished or changed dependency ${dependency}`);
   }
   const digest = await fingerprint(project);
   const current = saved.state.tasks[id] || {};
@@ -153,9 +156,9 @@ export async function moveTask(root, id, target, prNumber) {
       if (git.changes) throw new Error('GitHub completion requires a clean working tree');
       current.pr = pr.number;
     }
-    current.completion = { digest, head: git?.head ?? null, at: new Date().toISOString() };
+    current.completion = { digest, definition: taskDefinition(task), head: git?.head ?? null, at: new Date().toISOString() };
   }
-  const block = task.block.replace(/^- Состояние — .+$/m, `- Состояние — ${target}`);
+  const block = withTaskState(task, target);
   const markdown = project.markdown.slice(0, task.start) + block + project.markdown.slice(task.end);
   saved.state.tasks[id] = { ...current, lastTransition: { from: task.state, to: target, at: new Date().toISOString() } };
   await replaceFile(saved.filename, JSON.stringify(saved.state, null, 2) + '\n', saved.text);

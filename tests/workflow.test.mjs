@@ -48,6 +48,46 @@ test('unit: rejects duplicate IDs, missing dependencies and dependency cycles', 
   assert.throws(() => parseTasks(task('ET-1', 'invented')), /state/);
 });
 
+test('unit: fenced Markdown examples are not tasks, fields or acceptance criteria', () => {
+  for (const fence of ['```markdown', '~~~markdown', '   ````markdown']) {
+    const closing = fence.trim().match(/^[`~]+/)[0];
+    const markdown = task('ET-1') + `\n### Example\n\n${fence}\n` + task('ET-99') + '- Состояние — testing\n- [ ] Example only\n' + closing + '\n';
+    const parsed = parseTasks(markdown);
+    assert.deepEqual(parsed.map(entry => entry.id), ['ET-1']);
+    assert.equal(parsed[0].criteria.length, 1);
+    assert.equal(parsed[0].state, 'todo');
+    assert.equal(parsed[0].block, markdown);
+  }
+});
+
+test('integration: changed completed criteria block dependents until reverified', async t => {
+  const { root } = await fixture(t, task('ET-1') + task('ET-2', 'todo', 'ET-1'));
+  await moveTask(root, 'ET-1', 'in-progress');
+  for (const kind of ['review', 'sanitize']) await checkpoint(root, 'ET-1', kind, 'Checked original task.');
+  await moveTask(root, 'ET-1', 'testing');
+  for (const kind of ['test', 'unit', 'integration', 'e2e', 'lint', 'build']) await check(root, 'ET-1', kind);
+  await moveTask(root, 'ET-1', 'done');
+  const backlog = path.join(root, 'BACKLOG.md');
+  const original = await readFile(backlog, 'utf8');
+  await writeFile(backlog, original.replace('- [x] Результат проверен.', '- [x] Результат проверен.\n- [ ] Новое требование.'));
+  assert.ok((await status(root, 'ET-1')).blockers.some(value => /completion|definition/i.test(value)));
+  await assert.rejects(moveTask(root, 'ET-2', 'in-progress'), /dependency/i);
+  await writeFile(backlog, original);
+  await moveTask(root, 'ET-2', 'in-progress');
+});
+
+test('integration: state transitions preserve fenced examples and example edits invalidate checks', async t => {
+  const example = '```markdown\n- Состояние — todo\n```\n\n';
+  const { root } = await fixture(t, task('ET-1').replace('- Тип — feat', example + '- Тип — feat'));
+  await moveTask(root, 'ET-1', 'in-progress');
+  const filename = path.join(root, 'BACKLOG.md');
+  const markdown = await readFile(filename, 'utf8');
+  assert.ok(markdown.includes(example));
+  await checkpoint(root, 'ET-1', 'review', 'Read real task and fenced example.');
+  await writeFile(filename, markdown.replace(example, example.replace('todo', 'testing')));
+  assert.equal((await status(root, 'ET-1')).evidence.review.current, false);
+});
+
 test('unit: mode, goal and all test levels must be explicit', async t => {
   const { config } = await fixture(t);
   assert.deepEqual(validateProfile(config), []);

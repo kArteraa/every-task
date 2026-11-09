@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { readFile, readdir, rename, rm, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { inside } from './project.mjs';
+import { parseTasks, withTaskState } from './tasks.mjs';
 
 export async function readOptional(filename) {
   try { return await readFile(filename, 'utf8'); }
@@ -39,7 +40,11 @@ export async function fingerprint(project) {
       if (entry.isDirectory()) await walk(absolute, relative);
       else if (entry.isFile()) {
         let content = await readFile(absolute);
-        if (relative === config.paths.backlog) content = Buffer.from(content.toString('utf8').replace(/^- Состояние — .+$/gm, '- Состояние — <state>'));
+        if (relative === config.paths.backlog) {
+          let markdown = content.toString('utf8');
+          for (const task of parseTasks(markdown).reverse()) markdown = markdown.slice(0, task.start) + withTaskState(task, '<state>') + markdown.slice(task.end);
+          content = Buffer.from(markdown);
+        }
         digest.update(JSON.stringify([relative, content.length, createHash('sha256').update(content).digest('hex')]) + '\n');
       }
     }
